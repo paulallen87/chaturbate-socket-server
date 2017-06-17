@@ -1,7 +1,11 @@
 Chaturbate Socket Server
 =========
 
+![build status](https://travis-ci.org/paulallen87/chaturbate-socket-server.svg?branch=master)
+![coverage status](https://coveralls.io/repos/github/paulallen87/chaturbate-socket-server/badge.svg?branch=master)
+
 A socket server that publishes Chaturbate events from a profile.
+
 
 ## Installation
 
