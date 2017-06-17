@@ -1,7 +1,7 @@
 Chaturbate Socket Server
 =========
 
-A wrapper around a headless Chrome instance that allows for interacting with a Chaturbate.com profile.
+A socket server that publishes Chaturbate events from a profile.
 
 ## Installation
 
