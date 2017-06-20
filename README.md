@@ -35,7 +35,7 @@ server.listen(8080, () => {
 
 ## Client Usage
 
-See [chaturbate-events](https://github.com/paulallen87/chaturbate-events#events) module for more details.
+See chaturbate-events](https://github.com/paulallen87/chaturbate-events#events) module for more details.
 
 ```javascript
 const socket = io();
@@ -45,50 +45,54 @@ const USERNAME = 'myusername';
 
 socket.on('connect', () => {
   console.log('connected')
-
+  // tell the backend to load this profile
   socket.emit('init', USERNAME);
 });
 
-socket.on('silence', (e) => {
-  console.log(`${e.target} was silenced by ${e.source}`);
+socket.on('init', (e) => {
+  console.log(`Welcome to ${e.room}'s room!`);
+  console.log(`Current room subject is: ${e.subject}`);
 });
 
-socket.on('kick', (e) => {
-  console.log(`${e.target} was kicked`); 
+socket.on('room_entry', (e) => {
+  console.log(`${e.user.username} has joined the room`);
 });
 
-socket.on('notice', (e) => {
-  console.log(`NOTICE: ${e.message}`);  
+socket.on('room_leave', (e) => {
+  console.log(`${e.user.username} has left the room`); 
 });
 
 socket.on('tip', (e) => {
   console.log(`${e.user.username} tipped ${e.amount} tokens`);   
 });
 
-socket.on('message', (e) => {
-  console.log(`${e.user.username}: ${e.message}`);  
-});
-
 socket.on('room_message', (e) => {
-  console.log(`ROOM: ${e.message}`);  
-});
-
-socket.on('moderator_message', (e) => {
-  console.log(`MODERATOR: ${e.user.username} has ${e.action}`); 
-});
-
-socket.on('fanclub_message', (e) => {
-  console.log(`FANCLUB: ${e.user.username} has ${e.action}`); 
-});
-
-socket.on('purchase', (e) => {
-  console.log(`PURCHASE: ${e.message}`);
+  console.log(`${e.user.username}: ${e.message}`);  
 });
 
 socket.on('disconnect', () => {
   console.log('disconnect')
 });
 ```
+
+## Emits
+
+  ### **init**
+  The client can emit this message with a username as the payload. The server will load a [chaturbate-controller](https://github.com/paulallen87/chaturbate-controller) and respond with an **init** event.
+
+## Events
+
+  ### **connected**
+  Called when the socket is connected.
+
+  ### **init**
+  Called when the profile has been initialized by the [chaturbate-controller](https://github.com/paulallen87/chaturbate-controller)
+
+  The payload consists of all the properties on the [chaturbate-controller](https://github.com/paulallen87/chaturbate-controller).
+
+## Chaturbate Events
+All events supported by [chaturbate-events](https://github.com/paulallen87/chaturbate-events#events) are also broadcasted on these socket connections.
+
 
 ## Tests
 
