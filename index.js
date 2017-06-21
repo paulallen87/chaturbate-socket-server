@@ -13,8 +13,10 @@ class SocketGroup {
     this.browser = new ChaturbateBrowser();
     this.controller = new ChaturbateController(this.browser);
     this.sockets = {};
+    this.listeners = {};
+    this.init = false;
 
-    this.controller.on('state_change', (e) => this._onStateChange(e));
+    this.controller.on('init', (e) => this._onInit())
   }
 
   async start() {
@@ -28,16 +30,24 @@ class SocketGroup {
 
   addSocket(socket) {
     this.sockets[socket.id] = socket;
-    this._initSocket(socket);
+    if (this.init) {
+      this._initSocket(socket);
+    }
     this._bindEvents(socket);
   }
 
   removeSocket(id) {
+    this._unbindEvents(id);
     delete this.sockets[id];
   }
 
   isEmpty() {
     return !Object.keys(this.sockets).length;
+  }
+
+  _onInit() {
+    this.init = true;
+    this._forEach((socket) => this._initSocket(socket))
   }
 
   _forEach(callback) {
@@ -51,13 +61,36 @@ class SocketGroup {
   }
 
   _bindEvents(socket) {
-    this.controller.eventNames.forEach((name) => {
-      this.controller.on(name, (e) => socket.emit(name, e))
-    })
+    this._bind('state_change', socket);
+    this._bind('model_status_change', socket);
+    this.controller.eventNames.forEach((name) => this._bind(name, socket))
   }
 
-  _onStateChange(e) {
-    this._forEach((socket) => this._initSocket(socket))
+  _bind(name, socket) {
+    const listener = this._createListener(socket, name, (e) => socket.emit(name, e));
+    this.controller.on(name, (e) => listener(e));
+  }
+
+  _createListener(socket, name, cb) {
+    debug(`creating listener '${name}' for socket '${socket.id}'`)
+    if (!this.listeners[socket.id]) {
+      this.listeners[socket.id] = {};
+    }
+
+    this.listeners[socket.id][name] = (e) => cb(e);
+
+    return this.listeners[socket.id][name];
+  }
+
+  _unbindEvents(id) {
+    if (!this.listeners[id]) return;
+
+    Object.keys(this.listeners[id]).forEach((key) => {
+      debug(`destroying listener '${key}' for socket '${id}'`);
+      this.controller.removeListener(key, this.listeners[id][key])
+    })
+
+    delete this.listeners[id];
   }
 }
 
