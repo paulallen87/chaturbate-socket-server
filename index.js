@@ -20,7 +20,13 @@ class SocketGroup {
   }
 
   async start() {
-    await this.browser.start();
+    try {
+      await this.browser.start();
+    } catch(e) {
+      console.warn('failed to start the chrome browser');
+      console.error(e);
+      return;
+    }
     this.browser.navigate(this.username);
   }
 
