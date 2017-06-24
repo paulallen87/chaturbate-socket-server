@@ -27,7 +27,7 @@ class SocketGroup {
       console.error(e);
       return;
     }
-    this.browser.navigate(this.username);
+    this.browser.profile(this.username);
   }
 
   stop() {
