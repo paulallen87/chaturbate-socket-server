@@ -67,8 +67,6 @@ class SocketGroup {
   }
 
   _bindEvents(socket) {
-    this._bind('state_change', socket);
-    this._bind('model_status_change', socket);
     this.controller.eventNames.forEach((name) => this._bind(name, socket))
   }
 
