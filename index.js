@@ -44,13 +44,6 @@ class SocketGroup {
   }
 
   /**
-   * Stops the browser.
-   */
-  stop() {
-    this.browser.stop();
-  }
-
-  /**
    * Adds a new socket to the group.
    *
    * @param {Object} socket 
@@ -178,30 +171,33 @@ class ChaturbateSocketServer {
   /**
    * Constructor.
    *
-   * @param {Object} server
+   * @param {number} cleanupInterval
    * @constructor
    */
-  constructor(server) {
-    this.io = socketIO(server);
+  constructor(cleanupInterval = 30000) {
+    this.io = socketIO();
     this.io.on('connection', (socket) => this._onConnection(socket));
     this.groups = {};
     this.sockets = {};
+
+    setInterval(() => this._cleanup(), cleanupInterval);
   }
 
   /**
-   * Stops all browsers.
+   * Attaches an HTTP server to SocketIO.
+   *
+   * @param {Object} server 
    */
-  stop() {
-    Object.keys(this.groups).forEach((key) => {
-      debug(`stopping browser for '${key}'...`);
-      this.groups[key].stop();
-    });
+  attach(server) {
+    this.io.attach(server);
   }
 
   /**
    * Performs a cleanup of unused browsers.
+   * 
+   * @private
    */
-  cleanup() {
+  _cleanup() {
     Object.keys(this.groups).forEach((key) => {
       debug(`checking '${key}' socket group for cleanup...`);
       const group = this.groups[key];
