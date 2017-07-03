@@ -44,6 +44,13 @@ class SocketGroup {
   }
 
   /**
+   * Stops the browser.
+   */
+  stop() {
+    this.browser.stop();
+  }
+
+  /**
    * Adds a new socket to the group.
    *
    * @param {Object} socket 
