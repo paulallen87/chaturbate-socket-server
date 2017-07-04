@@ -1,6 +1,7 @@
 'use strict';
 
 const debug = require('debug')('chaturbate:socket-server');
+const fs = require('fs');
 const ChaturbateBrowser = require('@paulallen87/chaturbate-browser');
 const ChaturbateController = require('@paulallen87/chaturbate-controller');
 const socketIO = require('socket.io');
@@ -182,10 +183,12 @@ class ChaturbateSocketServer {
    * @constructor
    */
   constructor(cleanupInterval = 30000) {
-    this.io = socketIO();
-    this.io.on('connection', (socket) => this._onConnection(socket));
-    this.groups = {};
-    this.sockets = {};
+    this._io = socketIO();
+    this._io.on('connection', (socket) => this._onConnection(socket));
+    this._groups = {};
+    this._sockets = {};
+    this._aclEnabled = false;
+    this._aclFile = null;
 
     setInterval(() => this._cleanup(), cleanupInterval);
   }
@@ -194,9 +197,55 @@ class ChaturbateSocketServer {
    * Attaches an HTTP server to SocketIO.
    *
    * @param {Object} server 
+   * @return {this}
    */
   attach(server) {
-    this.io.attach(server);
+    this._io.attach(server);
+    return this;
+  }
+
+  /**
+   * Enables access control.
+   *
+   * @param {boolean} enabled 
+   * @return {this}
+   */
+  accessControl(enabled) {
+    this._aclEnabled = enabled;
+    return this;
+  }
+
+  /**
+   * Sets an access control file to use.
+   *
+   * @param {string} file
+   * @return {this}
+   */
+  accessList(file) {
+    this._aclFile = file;
+    return this;
+  }
+
+  /**
+   * Checks that a username is allowed.
+   *
+   * @param {string} username 
+   * @return {boolean}
+   */
+  _hasAccess(username) {
+    if (!this._aclEnabled) return true;
+    if (!this._aclFile) return true;
+    if (!fs.existsSync(this._aclFile)) return false;
+
+    const contents = fs.readFileSync(this._aclFile);
+    if (!contents) return false;
+
+    try {
+      const json = JSON.parse(contents);
+      return Boolean(json.users[username]);
+    } catch (e) {
+      return false;
+    }
   }
 
   /**
@@ -205,13 +254,13 @@ class ChaturbateSocketServer {
    * @private
    */
   _cleanup() {
-    Object.keys(this.groups).forEach((key) => {
+    Object.keys(this._groups).forEach((key) => {
       debug(`checking '${key}' socket group for cleanup...`);
-      const group = this.groups[key];
+      const group = this._groups[key];
       if (group.isEmpty()) {
         debug(`socket group '${key}' is empty`);
         group.stop();
-        delete this.groups[group.username];
+        delete this._groups[group.username];
       }
     });
   }
@@ -223,7 +272,7 @@ class ChaturbateSocketServer {
    */
   _onConnection(socket) {
     debug('new connection');
-    this.sockets[socket.id] = null;
+    this._sockets[socket.id] = null;
     socket.on('init', (username) => this._onInit(socket, username));
     socket.on('disconnect', () => this._onDisconnect(socket.id));
     socket.emit('connected');
@@ -237,9 +286,14 @@ class ChaturbateSocketServer {
    */
   _onInit(socket, username) {
     debug(`requesting socket group group: ${username}`);
-    const group = this._getOrCreateGroup(username);
-    group.addSocket(socket);
-    this.sockets[socket.id] = group;
+    if (this._hasAccess(username)) {
+      const group = this._getOrCreateGroup(username);
+      group.addSocket(socket);
+      this._sockets[socket.id] = group;
+    } else {
+      debug(`access denied to '${username}'`);
+      socket.emit('denied');
+    }
   }
 
   /**
@@ -250,16 +304,16 @@ class ChaturbateSocketServer {
   _onDisconnect(id) {
     debug(`socket disconnected`);
 
-    if (this.sockets[id] === null) {
+    if (this._sockets[id] === null) {
       debug('no socket group attached');
-      delete this.sockets[id];
+      delete this._sockets[id];
       return;
     }
 
-    if (this.sockets[id]) {
+    if (this._sockets[id]) {
       debug('found socket group attached');
-      const group = this.sockets[id];
-      delete this.sockets[id];
+      const group = this._sockets[id];
+      delete this._sockets[id];
       group.removeSocket(id);
     }
   }
@@ -271,13 +325,13 @@ class ChaturbateSocketServer {
    * @return {SocketGroup}
    */
   _getOrCreateGroup(username) {
-    if (!this.groups[username]) {
+    if (!this._groups[username]) {
       debug(`creating new socket group: ${username}`);
-      this.groups[username] = new SocketGroup(username);
-      this.groups[username].start();
+      this._groups[username] = new SocketGroup(username);
+      this._groups[username].start();
     }
 
-    return this.groups[username];
+    return this._groups[username];
   }
 }
 
