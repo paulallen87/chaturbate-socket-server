@@ -23,9 +23,11 @@ class SocketGroup {
     this.username = username;
     this.browser = new ChaturbateBrowser();
     this.controller = new ChaturbateController(this.browser);
+    this.controller.on('state_change', (e) => this._onStateChange(e));
     this.sockets = {};
     this.listeners = {};
     this.init = false;
+    this.timer = null;
 
     this.controller.on('init', (e) => this._onInit());
   }
@@ -81,6 +83,23 @@ class SocketGroup {
    */
   isEmpty() {
     return !Object.keys(this.sockets).length;
+  }
+
+  /**
+   * Sets up retry timers for offline status.
+   *
+   * @param {Object} e 
+   */
+  _onStateChange(e) {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
+
+    if (e.state === 'OFFLINE') {
+      this.timer = setInterval(() => {
+        this.browser.profile(this.username);
+      }, 30000);
+    }
   }
 
   /**
